@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Expense Reports</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <select id="yearSelect" class="form-select" onchange="window.location.href = '?year=' + this.value">
+                {% for year in available_years %}
+                <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h4 class="card-title">₹{{ yearly_total|floatformat:2 }}</h4>
+                <p class="card-text">Total Spent in {{ selected_year }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h4 class="card-title">₹{{ avg_monthly|floatformat:2 }}</h4>
+                <p class="card-text">Average Monthly Spend</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h4 class="card-title">{{ monthly_totals|length }}</h4>
+                <p class="card-text">Active Months</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Monthly Breakdown -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Monthly Breakdown - {{ selected_year }}</h5>
+            </div>
+            <div class="card-body">
+                {% if monthly_totals %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in monthly_totals %}
+                            <tr>
+                                <td>
+                                    {{ item.month_name }} {{ selected_year }}
+                                </td>
+                                <td>₹{{ item.total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary">
+                                <td><strong>Yearly Total</strong></td>
+                                <td><strong>₹{{ yearly_total|floatformat:2 }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No data available for {{ selected_year }}.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Category Breakdown - {{ selected_year }}</h5>
+            </div>
+            <div class="card-body">
+                {% if category_totals %}
+                <div class="list-group list-group-flush">
+                    {% for item in category_totals %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ item.category__name|default:"Uncategorized" }}
+                        <span class="badge bg-primary rounded-pill">₹{{ item.total|floatformat:2 }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No category data available for {{ selected_year }}.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Chart Visualization -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Monthly Spending Chart - {{ selected_year }}</h5>
+            </div>
+            <div class="card-body">
+                {% if monthly_totals %}
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                {% else %}
+                <p class="text-muted">No data available for chart visualization.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if monthly_totals %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    const months = [];
+    const amounts = [];
+    
+    {% for item in monthly_totals %}
+        months.push('{{ item.month_name }}');
+        amounts.push({{ item.total }});
+    {% endfor %}
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Monthly Spending (₹)',
+                data: amounts,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
